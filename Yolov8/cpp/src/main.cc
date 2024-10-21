@@ -8,6 +8,11 @@
 #include <opencv2/imgproc/imgproc.hpp>
 
 #define MODEL_INPUT_SIZE 640
+
+
+cv::Scalar classColorMap[2] = {cv::Scalar(255, 255, 0),
+			       cv::Scalar(0, 255, 0)};
+
 int main(int argc, char **argv)
 {
     if (argc != 2)
@@ -53,7 +58,8 @@ int main(int argc, char **argv)
             int x2 = det_result->box.right;
             int y2 = det_result->box.bottom;
             cv::Rect r = cv::Rect(x1, y1, x2 - x1, y2 - y1);
-            cv::rectangle(camFrame, r, cv::Scalar(255, 0, 0), 1, 8, 0);
+	    printf("%d\n", det_result->cls_id);
+            cv::rectangle(camFrame, r, classColorMap[det_result->cls_id], 1, 8, 0);
         }
         cv::imwrite("out.jpg", camFrame);
     }
