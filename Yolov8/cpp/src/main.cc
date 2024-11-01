@@ -6,12 +6,13 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <chrono>
 
-#define MODEL_INPUT_SIZE 640
-
+#define MODEL_INPUT_SIZE 320
+#define CAMERA_DEV 11
 
 cv::Scalar classColorMap[2] = {cv::Scalar(255, 255, 0),
-			       cv::Scalar(0, 255, 0)};
+                               cv::Scalar(0, 255, 0)};
 
 int main(int argc, char **argv)
 {
@@ -40,16 +41,24 @@ int main(int argc, char **argv)
     // OpenCV can't read square images
     cap.set(cv::CAP_PROP_FRAME_WIDTH, MODEL_INPUT_SIZE);
     cap.set(cv::CAP_PROP_FRAME_HEIGHT, MODEL_INPUT_SIZE);
-    cap.open(11);
+    cap.open(CAMERA_DEV);
     cv::Mat camFrame;
     while (1)
     {
+        // Measure camera reading latency
+        std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
         cap >> camFrame;
+        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+
+        printf("Frame latency: %lf\n", std::chrono::duration<double>(end - begin).count());
+
         cv::resize(camFrame, bgr640, cv::Size(MODEL_INPUT_SIZE, MODEL_INPUT_SIZE), 0, 0, cv::INTER_LINEAR);
         rknn_run(rknn_app_ctx.rknn_ctx, nullptr);
+        // printf("FPS: %lf\n", 1 / std::chrono::duration<double>(end - begin).count());
         object_detect_result_list od_results;
         post_process(&rknn_app_ctx, rknn_app_ctx.output_mems, 0.25, 0.45, &od_results);
-        printf("%d\n\n", od_results.count);
+        // printf("%d\n\n", od_results.count);
+
         for (int i = 0; i < od_results.count; i++)
         {
             object_detect_result *det_result = &(od_results.results[i]);
@@ -58,10 +67,10 @@ int main(int argc, char **argv)
             int x2 = det_result->box.right;
             int y2 = det_result->box.bottom;
             cv::Rect r = cv::Rect(x1, y1, x2 - x1, y2 - y1);
-	    printf("%d\n", det_result->cls_id);
+            printf("%d\n", det_result->cls_id);
             cv::rectangle(camFrame, r, classColorMap[det_result->cls_id], 1, 8, 0);
         }
-        cv::imwrite("out.jpg", camFrame);
+        // cv::imwrite("out.jpg", camFrame);
     }
 
     return 0;
